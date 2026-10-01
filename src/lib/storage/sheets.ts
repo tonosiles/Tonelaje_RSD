@@ -249,7 +249,7 @@ class DrivePhotos implements PhotoStore {
 }
 
 export function createSheetsStorage(): Storage {
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID?.trim().replace(/^["']|["']$/g, "");
   if (!spreadsheetId) throw new Error("Falta GOOGLE_SHEETS_ID (el ID de la planilla, que aparece en su URL).");
   const api = google.sheets({ version: "v4", auth: googleAuth() });
   return {
