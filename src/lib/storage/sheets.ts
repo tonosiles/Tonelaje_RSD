@@ -191,14 +191,47 @@ class SheetUsers implements UserRepository {
   }
 }
 
+/**
+ * Fotos en Google Drive. Con el permiso "drive.file" la app solo puede usar carpetas que
+ * ella misma creó, así que, si no se indica GOOGLE_DRIVE_FOLDER_ID, busca o crea su propia
+ * carpeta (por defecto "Vouchers - fotos (app)") en el Drive de la cuenta conectada.
+ */
 class DrivePhotos implements PhotoStore {
   private drive = google.drive({ version: "v3", auth: googleAuth() });
-  constructor(private folderId: string | undefined) {}
+  private folder: Promise<string> | null = null;
+  constructor(
+    private folderId: string | undefined,
+    private folderName: string,
+  ) {}
+
+  private resolveFolder(): Promise<string> {
+    if (this.folderId) return Promise.resolve(this.folderId);
+    this.folder ??= (async () => {
+      const name = this.folderName.replace(/'/g, "\\'");
+      const found = await this.drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and name = '${name}' and trashed = false`,
+        fields: "files(id)",
+        pageSize: 1,
+      });
+      const existing = found.data.files?.[0]?.id;
+      if (existing) return existing;
+      const created = await this.drive.files.create({
+        requestBody: { name: this.folderName, mimeType: "application/vnd.google-apps.folder" },
+        fields: "id",
+      });
+      return created.data.id!;
+    })().catch((e) => {
+      this.folder = null;
+      throw e;
+    });
+    return this.folder;
+  }
 
   async save(id: string, data: Buffer, mimeType: string) {
     const ext = mimeType === "image/png" ? "png" : "jpg";
+    const folderId = await this.resolveFolder();
     const res = await this.drive.files.create({
-      requestBody: { name: `voucher-${id}.${ext}`, parents: this.folderId ? [this.folderId] : undefined },
+      requestBody: { name: `voucher-${id}.${ext}`, parents: [folderId] },
       media: { mimeType, body: Readable.from(data) },
       fields: "id, webViewLink",
       supportsAllDrives: true,
@@ -222,7 +255,10 @@ export function createSheetsStorage(): Storage {
   return {
     vouchers: new SheetVouchers(new SheetTable(api, spreadsheetId, "Vouchers", VOUCHER_COLUMNS)),
     users: new SheetUsers(new SheetTable(api, spreadsheetId, "Usuarios", USER_COLUMNS)),
-    photos: new DrivePhotos(process.env.GOOGLE_DRIVE_FOLDER_ID),
+    photos: new DrivePhotos(
+      process.env.GOOGLE_DRIVE_FOLDER_ID,
+      process.env.GOOGLE_DRIVE_FOLDER_NAME || "Vouchers - fotos (app)",
+    ),
     backend: "sheets",
   };
 }

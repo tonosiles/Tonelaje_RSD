@@ -50,21 +50,29 @@ Sin `ANTHROPIC_API_KEY` la lectura devuelve datos simulados, para probar el fluj
 
 ## Configurar Google Sheets y Drive
 
-1. Cree una planilla de Google Sheets vacía y copie su ID (entre `/d/` y `/edit` en la URL)
-   en `GOOGLE_SHEETS_ID`. La app crea sola las hojas **Vouchers** y **Usuarios** con sus encabezados.
-2. Cree una carpeta en Google Drive para las fotos y copie su ID en `GOOGLE_DRIVE_FOLDER_ID`.
-3. En [Google Cloud Console](https://console.cloud.google.com/): cree un proyecto, habilite
-   **Google Sheets API** y **Google Drive API**, configure la pantalla de consentimiento OAuth
-   (tipo *Externo*, agréguese como usuario de prueba) y cree una credencial
-   **ID de cliente OAuth → Aplicación de escritorio**.
-4. Obtenga el refresh token (en su computador):
-   ```bash
-   GOOGLE_OAUTH_CLIENT_ID=... GOOGLE_OAUTH_CLIENT_SECRET=... npm run google-auth
-   ```
-   Copie el valor impreso en `GOOGLE_OAUTH_REFRESH_TOKEN`.
+Todo se hace desde el navegador, con la cuenta de Google que será dueña de los datos.
 
-   Mientras la app OAuth esté en modo *Prueba*, Google vence el refresh token a los 7 días;
-   publique la app (no requiere verificación para uso propio) para que no expire.
+1. Cree una planilla vacía y copie su ID (entre `/d/` y `/edit` en la URL) en `GOOGLE_SHEETS_ID`.
+   La app crea sola las hojas **Vouchers** y **Usuarios** con sus encabezados.
+2. En [Google Cloud Console](https://console.cloud.google.com/) cree un proyecto y, en
+   *APIs y servicios → Biblioteca*, habilite **Google Sheets API** y **Google Drive API**.
+3. En *Google Auth Platform* (pantalla de consentimiento OAuth): tipo de público **Externo**;
+   luego, en *Público*, pulse **Publicar app** (en modo Prueba el permiso vence a los 7 días).
+4. En *Clientes*, cree un cliente OAuth de tipo **Aplicación web** con el URI de redireccionamiento
+   `https://developers.google.com/oauthplayground`. Copie el ID y el secreto en
+   `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_OAUTH_CLIENT_SECRET`.
+5. Abra [OAuth Playground](https://developers.google.com/oauthplayground), pulse el engranaje,
+   marque *Use your own OAuth credentials* y pegue el ID y el secreto. En *Input your own scopes* escriba
+   `https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file`,
+   pulse **Authorize APIs**, acepte (si Google advierte que la app no está verificada: *Configuración
+   avanzada → Ir a…*), y luego **Exchange authorization code for tokens**. Copie el *Refresh token*
+   en `GOOGLE_OAUTH_REFRESH_TOKEN`.
+
+   Alternativa por terminal: `GOOGLE_OAUTH_CLIENT_ID=... GOOGLE_OAUTH_CLIENT_SECRET=... npm run google-auth`
+   (con un cliente de tipo *Aplicación de escritorio*).
+
+Las fotos se guardan en la carpeta **Vouchers - fotos (app)**, que la app crea sola en su Drive
+(con el permiso `drive.file` la app solo accede a lo que ella misma crea, no al resto de su Drive).
 
 La hoja **Usuarios** guarda las contraseñas como hash (bcrypt). Conviene no compartir esa hoja
 con editores que no sean administradores.
