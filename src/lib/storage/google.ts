@@ -11,7 +11,7 @@ import { google } from "googleapis";
 let cached: InstanceType<typeof google.auth.OAuth2> | InstanceType<typeof google.auth.GoogleAuth> | null = null;
 
 /** Quita espacios y comillas que suelen colarse al pegar valores en el panel del hosting. */
-function env(name: string): string | undefined {
+export function env(name: string): string | undefined {
   const v = process.env[name]?.trim().replace(/^["']|["']$/g, "").trim();
   return v || undefined;
 }
