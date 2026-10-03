@@ -1,6 +1,7 @@
-# Vouchers — digitalización de comprobantes de pago
+# Vouchers — digitalización de tickets de pesaje
 
-Aplicación web (optimizada para celulares) que fotografía vouchers, los lee con IA
+Aplicación web (optimizada para celulares) que fotografía tickets de pesaje de báscula
+(recepción de carga: folio, patente, chofer, origen, pesos de entrada, salida y neto), los lee con IA
 (Claude, visión), permite revisar y corregir los datos y los guarda en Google Sheets.
 
 ## Funciones del MVP
@@ -53,7 +54,7 @@ Sin `ANTHROPIC_API_KEY` la lectura devuelve datos simulados, para probar el fluj
 Todo se hace desde el navegador, con la cuenta de Google que será dueña de los datos.
 
 1. Cree una planilla vacía y copie su ID (entre `/d/` y `/edit` en la URL) en `GOOGLE_SHEETS_ID`.
-   La app crea sola las hojas **Vouchers** y **Usuarios** con sus encabezados.
+   La app crea sola las hojas **Tickets** (una fila por ticket de pesaje) y **Usuarios** con sus encabezados.
 2. En [Google Cloud Console](https://console.cloud.google.com/) cree un proyecto y, en
    *APIs y servicios → Biblioteca*, habilite **Google Sheets API** y **Google Drive API**.
 3. En *Google Auth Platform* (pantalla de consentimiento OAuth): tipo de público **Externo**;

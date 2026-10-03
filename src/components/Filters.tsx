@@ -57,7 +57,7 @@ export function FiltersBar({
           ref={searchRef}
           className="input"
           type="search"
-          placeholder="Buscar comercio, RUT, código, monto…"
+          placeholder="Buscar folio, patente, chofer, origen…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -76,8 +76,8 @@ export function FiltersBar({
             <input className="input" type="date" value={filters.hasta ?? ""} onChange={(e) => set("hasta", e.target.value)} />
           </div>
           <div>
-            <label className="label">Comercio</label>
-            <input className="input" value={filters.comercio ?? ""} onChange={(e) => set("comercio", e.target.value)} />
+            <label className="label">Patente</label>
+            <input className="input" value={filters.patente ?? ""} onChange={(e) => set("patente", e.target.value)} />
           </div>
           <div>
             <label className="label">Usuario</label>
@@ -89,16 +89,16 @@ export function FiltersBar({
             </select>
           </div>
           <div>
-            <label className="label">Monto mínimo</label>
-            <input className="input" inputMode="decimal" value={filters.montoMin ?? ""} onChange={(e) => set("montoMin", e.target.value)} />
+            <label className="label">Peso neto mínimo (kg)</label>
+            <input className="input" inputMode="numeric" value={filters.pesoMin ?? ""} onChange={(e) => set("pesoMin", e.target.value)} />
           </div>
           <div>
-            <label className="label">Monto máximo</label>
-            <input className="input" inputMode="decimal" value={filters.montoMax ?? ""} onChange={(e) => set("montoMax", e.target.value)} />
+            <label className="label">Peso neto máximo (kg)</label>
+            <input className="input" inputMode="numeric" value={filters.pesoMax ?? ""} onChange={(e) => set("pesoMax", e.target.value)} />
           </div>
           <div>
-            <label className="label">Medio de pago</label>
-            <input className="input" placeholder="Ej. Visa, débito" value={filters.medioPago ?? ""} onChange={(e) => set("medioPago", e.target.value)} />
+            <label className="label">Origen</label>
+            <input className="input" placeholder="Ej. Cholchol" value={filters.origen ?? ""} onChange={(e) => set("origen", e.target.value)} />
           </div>
           <div>
             <label className="label">Estado</label>

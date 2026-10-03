@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { requireAction } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { handle } from "@/lib/api";
-import { FIELD_LABELS } from "@/lib/fields";
+import { FIELD_LABELS, WEIGHT_FIELDS } from "@/lib/fields";
 import { applyFilters, filtersFromParams } from "@/lib/filters";
 import { parseAmount } from "@/lib/format";
 import { getStorage } from "@/lib/storage";
@@ -13,7 +13,7 @@ const COLUMNS: { key: keyof VoucherRecord; label: string; number?: boolean }[] =
   { key: "creado_en", label: "Fecha y hora de carga" },
   { key: "creado_por", label: "Usuario" },
   { key: "estado", label: "Estado" },
-  ...VOUCHER_FIELDS.map((f) => ({ key: f, label: FIELD_LABELS[f], number: ["monto", "propina", "monto_total"].includes(f) })),
+  ...VOUCHER_FIELDS.map((f) => ({ key: f, label: FIELD_LABELS[f], number: WEIGHT_FIELDS.includes(f) })),
   { key: "foto_url", label: "Foto original" },
 ];
 
@@ -35,7 +35,7 @@ export const GET = handle(async (req: Request) => {
 
   if (url.searchParams.get("format") === "xlsx") {
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Vouchers");
+    const ws = wb.addWorksheet("Tickets");
     ws.columns = COLUMNS.map((c) => ({ header: c.label, key: c.key, width: Math.max(12, c.label.length + 2) }));
     ws.getRow(1).font = { bold: true };
     ws.views = [{ state: "frozen", ySplit: 1 }];
@@ -53,7 +53,7 @@ export const GET = handle(async (req: Request) => {
     return new Response(buf as ArrayBuffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="vouchers-${stamp}.xlsx"`,
+        "Content-Disposition": `attachment; filename="tickets-pesaje-${stamp}.xlsx"`,
       },
     });
   }
@@ -66,7 +66,7 @@ export const GET = handle(async (req: Request) => {
   return new Response("﻿" + lines.join("\r\n"), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="vouchers-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="tickets-pesaje-${stamp}.csv"`,
     },
   });
 });

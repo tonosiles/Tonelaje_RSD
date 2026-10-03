@@ -21,18 +21,16 @@ export function parseAmount(value: string | number | undefined | null): number |
   return Number.isFinite(n) ? n : null;
 }
 
-export function formatMoney(value: string | number | null | undefined, currency = "CLP"): string {
+/** Kilos con separador de miles chileno: 11310 → "11.310 kg". */
+export function formatKg(value: string | number | null | undefined): string {
   const n = typeof value === "number" ? value : parseAmount(value ?? "");
   if (n === null) return "";
-  try {
-    return new Intl.NumberFormat("es-CL", {
-      style: "currency",
-      currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : "CLP",
-      maximumFractionDigits: currency === "CLP" || !currency ? 0 : 2,
-    }).format(n);
-  } catch {
-    return n.toLocaleString("es-CL");
-  }
+  return `${n.toLocaleString("es-CL", { maximumFractionDigits: 2 })} kg`;
+}
+
+/** Toneladas para totales: 11310 → "11,31 t". */
+export function formatTon(kg: number): string {
+  return `${(kg / 1000).toLocaleString("es-CL", { maximumFractionDigits: 2 })} t`;
 }
 
 /** Fecha local (zona horaria de la app) en formato YYYY-MM-DD. */
@@ -56,7 +54,12 @@ export function formatDate(ymd: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ymd || "";
 }
 
-/** Monto principal de un registro: el total pagado si existe; si no, el monto. */
-export function recordAmount(r: { monto_total: string; monto: string }): number {
-  return parseAmount(r.monto_total) ?? parseAmount(r.monto) ?? 0;
+/** Peso neto de un registro en kilos (0 si no se identificó). */
+export function recordWeight(r: { peso_neto: string }): number {
+  return parseAmount(r.peso_neto) ?? 0;
+}
+
+/** Título corto de un ticket para listas: patente y folio. */
+export function recordTitle(r: { patente: string; folio: string }): string {
+  return [r.patente || "Patente no identificada", r.folio && `Folio ${r.folio}`].filter(Boolean).join(" · ");
 }

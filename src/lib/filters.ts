@@ -1,15 +1,15 @@
-import { parseAmount, recordAmount } from "./format";
+import { parseAmount, recordWeight } from "./format";
 import type { VoucherRecord } from "./types";
 
 export interface RecordFilters {
   q?: string;
-  desde?: string; // YYYY-MM-DD (fecha del voucher)
+  desde?: string; // YYYY-MM-DD (fecha del ticket)
   hasta?: string;
-  comercio?: string;
+  patente?: string;
+  origen?: string;
   usuario?: string;
-  montoMin?: string;
-  montoMax?: string;
-  medioPago?: string;
+  pesoMin?: string; // kilos netos
+  pesoMax?: string;
   estado?: string; // "" = todos excepto Eliminado
 }
 
@@ -17,11 +17,11 @@ export const FILTER_KEYS: (keyof RecordFilters)[] = [
   "q",
   "desde",
   "hasta",
-  "comercio",
+  "patente",
+  "origen",
   "usuario",
-  "montoMin",
-  "montoMax",
-  "medioPago",
+  "pesoMin",
+  "pesoMax",
   "estado",
 ];
 
@@ -46,30 +46,29 @@ const fold = (s: string) =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
-/** Fecha efectiva de un registro: la del voucher o, si no se identificó, la de carga. */
+/** Fecha efectiva de un registro: la de entrada a báscula, la del ticket o, si no hay, la de carga. */
 export function recordDate(r: VoucherRecord): string {
-  return r.fecha || (r.creado_en || "").slice(0, 10);
+  return r.entrada_fecha || r.fecha || (r.creado_en || "").slice(0, 10);
 }
 
 export function applyFilters(records: VoucherRecord[], f: RecordFilters): VoucherRecord[] {
   const q = fold(f.q || "").trim();
-  const min = parseAmount(f.montoMin ?? "");
-  const max = parseAmount(f.montoMax ?? "");
+  const min = parseAmount(f.pesoMin ?? "");
+  const max = parseAmount(f.pesoMax ?? "");
   return records
     .filter((r) => {
       if (f.estado ? r.estado !== f.estado : r.estado === "Eliminado") return false;
       const d = recordDate(r);
       if (f.desde && d < f.desde) return false;
       if (f.hasta && d > f.hasta) return false;
-      if (f.comercio && !fold(r.comercio).includes(fold(f.comercio))) return false;
+      if (f.patente && !fold(r.patente).replace(/[\s-]/g, "").includes(fold(f.patente).replace(/[\s-]/g, ""))) return false;
+      if (f.origen && !fold(r.origen).includes(fold(f.origen))) return false;
       if (f.usuario && r.creado_por !== f.usuario) return false;
-      if (f.medioPago && !fold(`${r.medio_pago} ${r.tipo_tarjeta} ${r.debito_credito}`).includes(fold(f.medioPago)))
-        return false;
-      const amount = recordAmount(r);
-      if (min !== null && amount < min) return false;
-      if (max !== null && amount > max) return false;
+      const kg = recordWeight(r);
+      if (min !== null && kg < min) return false;
+      if (max !== null && kg > max) return false;
       if (q && !fold(Object.values(r).join(" ")).includes(q)) return false;
       return true;
     })
-    .sort((a, b) => (recordDate(b) + b.hora + b.creado_en).localeCompare(recordDate(a) + a.hora + a.creado_en));
+    .sort((a, b) => (recordDate(b) + (b.entrada_hora || b.hora) + b.creado_en).localeCompare(recordDate(a) + (a.entrada_hora || a.hora) + a.creado_en));
 }

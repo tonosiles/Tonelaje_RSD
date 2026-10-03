@@ -1,13 +1,13 @@
 import { google, sheets_v4 } from "googleapis";
 import { Readable } from "stream";
 import { VOUCHER_FIELDS, type User, type VoucherRecord } from "../types";
-import { FIELD_LABELS } from "../fields";
+import { FIELD_LABELS, WEIGHT_FIELDS } from "../fields";
 import { parseAmount } from "../format";
 import { googleAuth } from "./google";
 import type { PhotoStore, Storage, UserRepository, VoucherRepository } from "./types";
 
 /**
- * Implementación sobre Google Sheets: una hoja "Vouchers" (una fila por voucher) y una
+ * Implementación sobre Google Sheets: una hoja "Tickets" (una fila por ticket de pesaje) y una
  * hoja "Usuarios". La primera fila de cada hoja son los encabezados; se crean solos.
  */
 
@@ -21,7 +21,7 @@ const VOUCHER_COLUMNS: Column<VoucherRecord>[] = [
   ...VOUCHER_FIELDS.map((f) => ({
     key: f,
     label: FIELD_LABELS[f],
-    kind: f === "monto" || f === "propina" || f === "monto_total" ? ("number" as const) : undefined,
+    kind: WEIGHT_FIELDS.includes(f) ? ("number" as const) : undefined,
   })),
   { key: "foto_url", label: "Foto original" },
   { key: "foto_ref", label: "Referencia foto" },
@@ -253,7 +253,7 @@ export function createSheetsStorage(): Storage {
   if (!spreadsheetId) throw new Error("Falta GOOGLE_SHEETS_ID (el ID de la planilla, que aparece en su URL).");
   const api = google.sheets({ version: "v4", auth: googleAuth() });
   return {
-    vouchers: new SheetVouchers(new SheetTable(api, spreadsheetId, "Vouchers", VOUCHER_COLUMNS)),
+    vouchers: new SheetVouchers(new SheetTable(api, spreadsheetId, process.env.GOOGLE_SHEETS_TAB || "Tickets", VOUCHER_COLUMNS)),
     users: new SheetUsers(new SheetTable(api, spreadsheetId, "Usuarios", USER_COLUMNS)),
     photos: new DrivePhotos(
       process.env.GOOGLE_DRIVE_FOLDER_ID,

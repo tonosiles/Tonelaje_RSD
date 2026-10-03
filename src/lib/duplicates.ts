@@ -7,42 +7,43 @@ export interface DuplicateMatch {
   coincidencias: string[];
 }
 
-const norm = (s: string) => (s || "").replace(/\s+/g, "").replace(/^0+(?=\d)/, "").toUpperCase();
+const norm = (s: string) => (s || "").replace(/[\s.-]+/g, "").replace(/^0+(?=\d)/, "").toUpperCase();
 
 /**
- * Busca registros que probablemente correspondan al mismo voucher.
- * Un código de autorización o número de operación idéntico pesa más que la fecha o el monto.
+ * Busca registros que probablemente correspondan al mismo ticket.
+ * Un folio idéntico pesa más que la patente, la fecha o el peso.
  */
 export function findDuplicates(data: VoucherData, records: VoucherRecord[]): DuplicateMatch[] {
-  const amount = parseAmount(data.monto_total) ?? parseAmount(data.monto);
+  const neto = parseAmount(data.peso_neto);
+  const fecha = data.entrada_fecha || data.fecha;
   const matches: DuplicateMatch[] = [];
   for (const r of records) {
     if (r.estado === "Eliminado") continue;
     const c: string[] = [];
     let score = 0;
-    if (data.codigo_autorizacion && norm(data.codigo_autorizacion) === norm(r.codigo_autorizacion)) {
+    if (data.folio && norm(data.folio) === norm(r.folio)) {
       score += 3;
-      c.push("código de autorización");
+      c.push("folio");
     }
-    if (data.numero_operacion && norm(data.numero_operacion) === norm(r.numero_operacion)) {
-      score += 3;
-      c.push("número de operación");
+    if (data.patente && norm(data.patente) === norm(r.patente)) {
+      score += 1;
+      c.push("patente");
     }
-    if (data.fecha && data.fecha === r.fecha) {
+    if (fecha && fecha === (r.entrada_fecha || r.fecha)) {
       score += 1;
       c.push("fecha");
     }
-    const rAmount = parseAmount(r.monto_total) ?? parseAmount(r.monto);
-    if (amount !== null && rAmount !== null && Math.abs(amount - rAmount) < 0.005) {
+    const rNeto = parseAmount(r.peso_neto);
+    if (neto !== null && rNeto !== null && neto === rNeto) {
       score += 1;
-      c.push("monto");
+      c.push("peso neto");
     }
-    if (data.ultimos_4_digitos && data.ultimos_4_digitos === r.ultimos_4_digitos) {
+    if (data.entrada_hora && data.entrada_hora === r.entrada_hora) {
       score += 1;
-      c.push("últimos 4 dígitos");
+      c.push("hora de entrada");
     }
-    // Probable duplicado: coincide un identificador fuerte + otro dato, o fecha + monto + tarjeta.
-    if (score >= 4 || (score >= 3 && c.includes("fecha") && c.includes("monto"))) {
+    // Probable duplicado: mismo folio + otro dato, o misma patente, fecha y peso neto.
+    if (score >= 4 || (c.includes("patente") && c.includes("fecha") && c.includes("peso neto"))) {
       matches.push({ record: r, score, coincidencias: c });
     }
   }

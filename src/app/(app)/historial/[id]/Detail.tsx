@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import { StatusBadge } from "@/components/StatusBadge";
 import { VoucherForm } from "@/components/VoucherForm";
-import { FIELD_DEFS } from "@/lib/fields";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { FIELD_SECTIONS } from "@/lib/fields";
+import { formatDate, formatDateTime, formatKg, recordTitle } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { ESTADOS, VOUCHER_FIELDS, type Estado, type VoucherData, type VoucherRecord } from "@/lib/types";
 
@@ -76,9 +76,9 @@ export function Detail({ id }: { id: string }) {
       </div>
       <div className="mb-4 flex flex-wrap items-start gap-2">
         <div className="mr-auto">
-          <h1 className="text-2xl font-bold">{record.comercio || "Comercio no identificado"}</h1>
+          <h1 className="text-2xl font-bold">{recordTitle(record)}</h1>
           <p className="text-slate-600">
-            {formatMoney(record.monto_total || record.monto, record.moneda)} · {formatDate(record.fecha)} {record.hora}
+            {[formatKg(record.peso_neto) && `${formatKg(record.peso_neto)} netos`, record.origen, `${formatDate(record.entrada_fecha || record.fecha)} ${record.entrada_hora || record.hora}`.trim()].filter(Boolean).join(" · ")}
           </p>
         </div>
         <StatusBadge estado={record.estado} />
@@ -119,16 +119,21 @@ export function Detail({ id }: { id: string }) {
             </>
           ) : (
             <>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-                {FIELD_DEFS.map((f) => (
-                  <div key={f.key} className={`border-b border-slate-100 pb-1.5 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}>
-                    <dt className="text-xs text-slate-500">{f.label}</dt>
-                    <dd className={`whitespace-pre-wrap text-sm ${record[f.key] ? "text-slate-900" : "text-slate-400"}`}>
-                      {(f.type === "money" && record[f.key] ? formatMoney(record[f.key], record.moneda) : f.type === "date" ? formatDate(record[f.key]) : record[f.key]) || "No identificado"}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              {FIELD_SECTIONS.map((section) => (
+                <div key={section.title} className="mb-4">
+                  <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">{section.title}</h2>
+                  <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                    {section.fields.map((f) => (
+                      <div key={f.key} className={`border-b border-slate-100 pb-1.5 ${f.type === "textarea" ? "sm:col-span-2" : ""}`}>
+                        <dt className="text-xs text-slate-500">{f.label}</dt>
+                        <dd className={`whitespace-pre-wrap text-sm ${record[f.key] ? "text-slate-900" : "text-slate-400"}`}>
+                          {(f.type === "weight" && record[f.key] ? formatKg(record[f.key]) : f.type === "date" ? formatDate(record[f.key]) : record[f.key]) || "No identificado"}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
               {canEdit && (
                 <div className="mt-4 flex gap-2">
                   <button className="btn-secondary flex-1" onClick={startEdit}>Editar</button>

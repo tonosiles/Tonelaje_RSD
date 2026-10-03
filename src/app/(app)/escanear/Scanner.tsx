@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { VoucherForm } from "@/components/VoucherForm";
 import type { DuplicateMatch } from "@/lib/duplicates";
-import { formatDate, formatMoney, recordAmount } from "@/lib/format";
+import { formatDate, formatKg, recordTitle } from "@/lib/format";
 import { preprocessImage, type Processed } from "@/lib/preprocess";
 import type { VoucherData, VoucherField, VoucherRecord } from "@/lib/types";
 
@@ -142,7 +142,7 @@ export function Scanner() {
         </div>
         <h1 className="text-2xl font-bold">Voucher guardado</h1>
         <p className="text-slate-600">
-          {saved.comercio || "Comercio no identificado"} · {formatMoney(recordAmount(saved), saved.moneda)}
+          {recordTitle(saved)} · {formatKg(saved.peso_neto) || "Peso no identificado"}
         </p>
         <button className="btn-primary py-5 text-lg" onClick={restart}>Escanear otro voucher</button>
         <Link className="btn-secondary" href={`/historial/${saved.id}`}>Ver registro</Link>
@@ -164,7 +164,7 @@ export function Scanner() {
       )}
       {extraction && !extraction.es_voucher && (
         <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          La imagen no parece ser un comprobante de pago. Revise o vuelva a escanear.
+          La imagen no parece ser un ticket de pesaje. Revise o vuelva a escanear.
         </p>
       )}
       {extraction?.observaciones && !extraction.simulado && (
@@ -190,7 +190,7 @@ export function Scanner() {
             {duplicates.map((d) => (
               <li key={d.record.id} className="rounded-lg bg-white p-3 text-sm">
                 <div className="font-medium">
-                  {d.record.comercio || "Sin comercio"} · {formatMoney(recordAmount(d.record), d.record.moneda)} · {formatDate(d.record.fecha)}
+                  {recordTitle(d.record)} · {formatKg(d.record.peso_neto)} · {formatDate(d.record.entrada_fecha || d.record.fecha)}
                 </div>
                 <div className="text-slate-500">
                   Cargado por {d.record.creado_por}. Coincide: {d.coincidencias.join(", ")}.{" "}

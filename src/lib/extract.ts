@@ -25,29 +25,31 @@ export interface ExtractionResult {
   simulado: boolean;
 }
 
-const SYSTEM_PROMPT = `Eres un sistema de lectura de comprobantes de pago (vouchers de tarjetas, boletas de máquinas POS como Transbank, Getnet, Klap, SumUp, Mercado Pago, comprobantes de transferencias y similares), principalmente de Chile.
+const SYSTEM_PROMPT = `Eres un sistema de lectura de tickets de pesaje de camiones (ticket de báscula o "Ticket de pesaje - Recepción de carga") de rellenos sanitarios y centros de manejo de residuos de Chile. Un ticket típico trae: empresa emisora con RUT y dirección, fecha y hora, FOLIO, una sección IDENTIFICACION (patente, cliente, generador, producto, origen, guía, chofer, transportista, cada uno con RUT o código y nombre), una sección PESAJE con filas de Entrada y Salida (fecha, hora, peso, usuario), el Peso Neto, el Peso Neto Inf., una diferencia, observaciones y a veces un timbre manuscrito de recepción.
 
-Tu tarea es transcribir los datos que aparecen impresos en la fotografía a los campos solicitados.
+Tu tarea es transcribir los datos impresos o escritos en la fotografía a los campos solicitados.
 
 Reglas estrictas:
-- No inventes ni deduzcas información que no esté impresa. Si un dato no aparece o no se lee con seguridad, deja el campo como cadena vacía "".
-- Si lees un dato pero con dudas (borroso, cortado, arrugado), escríbelo y agrega el nombre del campo a "campos_dudosos".
+- No inventes ni deduzcas información que no esté en el ticket. Si un dato no aparece o el campo está en blanco en el ticket, deja el campo como cadena vacía "".
+- Si lees un dato pero con dudas (borroso, cortado, arrugado, tapado por una firma), escríbelo y agrega el nombre del campo a "campos_dudosos".
 - La imagen puede estar inclinada, rotada, con sombras o arrugada: léela en la orientación correcta.
 
 Formato de los campos:
-- fecha: AAAA-MM-DD. Los vouchers chilenos usan día/mes/año. Si el año aparece con 2 dígitos, asume 20XX.
-- hora: HH:MM o HH:MM:SS en 24 horas.
-- monto, propina, monto_total: solo el número, sin símbolo ni separador de miles; usa punto para decimales (ej. "12500" o "12.50"). "monto" es el monto antes de propina; "monto_total" es el total finalmente pagado. Si solo hay un total y no hay propina, pon el mismo valor en ambos.
-- rut_comercio: tal como aparece, normalizado a formato 12.345.678-9 si es un RUT chileno.
-- ultimos_4_digitos: solo los 4 últimos dígitos visibles de la tarjeta (ej. de "**** **** **** 1234" es "1234").
-- medio_pago: por ejemplo "Tarjeta", "Efectivo", "Transferencia", "Webpay", "Billetera digital".
-- tipo_tarjeta: marca, por ejemplo "Visa", "Mastercard", "American Express", "Redcompra", "Magna".
-- debito_credito: "Débito", "Crédito" o "Prepago", solo si se puede determinar del voucher.
-- cuotas: número de cuotas si aparece (ej. "3"); "Sin cuotas" solo si está impreso.
-- moneda: código ISO (ej. "CLP", "USD"). Si los montos están en pesos chilenos ($ sin decimales en un voucher chileno), usa "CLP".
-- numero_operacion, id_transaccion, numero_voucher, codigo_autorizacion, terminal, numero_comercio: cópialos exactamente, incluidos ceros a la izquierda.
-- otros_datos: cualquier otro dato relevante impreso (tipo de transacción, dirección, glosas), en texto breve separado por "; ".
-- es_voucher: false si la imagen claramente no es un comprobante de pago.
+- fecha, entrada_fecha, salida_fecha: AAAA-MM-DD. En Chile las fechas son día-mes-año (21-08-2026). Ojo: el encabezado puede venir en formato mes.día.año (08.21.2026 = 21 de agosto); usa el que sea coherente con las fechas de entrada y salida. Si el año tiene 2 dígitos, asume 20XX.
+- hora, entrada_hora, salida_hora: HH:MM en 24 horas. "fecha" y "hora" son las del encabezado del ticket.
+- peso_entrada, peso_salida, peso_neto, peso_neto_inf: kilos como número entero, sin separador de miles ni unidad. En estos tickets el punto separa miles: "24.630" es 24630 kg.
+- Comprueba que peso_entrada - peso_salida = peso_neto. Si no cuadra, transcribe lo que dice el ticket y agrega esos tres campos a "campos_dudosos".
+- folio, guia, producto_codigo: cópialos exactamente, incluidos ceros a la izquierda.
+- patente: en mayúsculas y sin espacios ni guiones (ej. "SWGS52").
+- rut_empresa, cliente_rut, chofer_rut, transportista_rut: normalizados al formato 12.345.678-9 (con puntos de miles y guion; si el ticket usa comas, cámbialas por puntos). Conserva la K mayúscula del dígito verificador.
+- empresa, cliente, chofer, transportista, generador, producto, origen: el nombre tal como aparece.
+- entrada_usuario, salida_usuario: el usuario o modo de la báscula tal como aparece (ej. "PJE/AUTO MANUEL").
+- diferencia: como aparece (ej. "0", "0 %").
+- tipo_documento: el título del documento (ej. "Ticket de pesaje - Recepción de carga").
+- recepcion: texto del timbre o anotación manuscrita de recepción, si hay (ej. "Centro de Manejo de Residuos Malleco Norte - Recepcionado báscula - 21/08/26").
+- observacion: el texto de la sección Observación. Una firma no es texto: si solo hay una firma, escribe "Firmado".
+- otros_datos: cualquier otro dato relevante, en texto breve separado por "; ".
+- es_voucher: false si la imagen claramente no es un ticket de pesaje ni un comprobante similar.
 - observaciones: una frase breve sobre la calidad de lectura o problemas encontrados, o "" si no hay.`;
 
 function client() {
@@ -75,7 +77,7 @@ export async function extractVoucher(image: Buffer, mediaType: "image/jpeg" | "i
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: image.toString("base64") } },
-          { type: "text", text: "Extrae los datos de este comprobante." },
+          { type: "text", text: "Extrae los datos de este ticket de pesaje." },
         ],
       },
     ],
@@ -107,27 +109,39 @@ function cleanValue(v: string): string {
 function mockExtraction(): ExtractionResult {
   const data = emptyVoucher();
   const today = new Date().toISOString().slice(0, 10);
+  const folio = String(Math.floor(Math.random() * 90000) + 10000);
   Object.assign(data, {
+    folio,
     fecha: today,
-    hora: "13:45",
-    comercio: "Comercio de Prueba SpA",
-    rut_comercio: "76.123.456-7",
-    numero_operacion: String(Math.floor(Math.random() * 900000) + 100000),
-    codigo_autorizacion: String(Math.floor(Math.random() * 900000) + 100000),
-    monto: "12500",
-    propina: "",
-    monto_total: "12500",
-    medio_pago: "Tarjeta",
-    tipo_tarjeta: "Visa",
-    ultimos_4_digitos: "4321",
-    debito_credito: "Débito",
-    terminal: "POS-01",
-    moneda: "CLP",
+    hora: "16:03",
+    tipo_documento: "Ticket de pesaje - Recepción de carga",
+    empresa: "Empresa de Prueba S.A.",
+    rut_empresa: "76.123.456-7",
+    patente: "ABCD12",
+    cliente_rut: "76.987.654-3",
+    cliente: "Cliente de Prueba SpA",
+    producto_codigo: "01",
+    producto: "DOMICILIARIO",
+    origen: "COMUNA DE PRUEBA",
+    chofer_rut: "12.345.678-9",
+    chofer: "CHOFER DE PRUEBA",
+    entrada_fecha: today,
+    entrada_hora: "15:34",
+    peso_entrada: "24630",
+    entrada_usuario: "PJE/AUTO",
+    salida_fecha: today,
+    salida_hora: "16:03",
+    peso_salida: "13320",
+    salida_usuario: "PJE/AUTO",
+    peso_neto: "11310",
+    peso_neto_inf: "0",
+    diferencia: "0",
   });
+
   return {
     data,
-    dudosos: ["hora"],
-    observaciones: "Lectura simulada: configure ANTHROPIC_API_KEY para leer vouchers reales.",
+    dudosos: ["patente"],
+    observaciones: "Lectura simulada: configure ANTHROPIC_API_KEY para leer tickets reales.",
     es_voucher: true,
     modelo: "simulado",
     simulado: true,

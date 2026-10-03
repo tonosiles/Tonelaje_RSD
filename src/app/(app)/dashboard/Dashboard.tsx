@@ -5,7 +5,7 @@ import { FiltersBar, useFilters } from "@/components/Filters";
 import { useSession } from "@/components/SessionProvider";
 import { useRecords } from "@/components/useRecords";
 import { applyFilters } from "@/lib/filters";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatKg, formatTon } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { computeStats } from "@/lib/stats";
 
@@ -28,14 +28,15 @@ export function Dashboard() {
       {!records && !error && <p className="py-10 text-center text-slate-500">Cargando…</p>}
       {records && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Tile label="Vouchers registrados" value={stats.total.toLocaleString("es-CL")} />
-            <Tile label="Monto total acumulado" value={formatMoney(stats.montoTotal)} />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <Tile label="Tickets registrados" value={stats.total.toLocaleString("es-CL")} />
+            <Tile label="Toneladas netas" value={formatTon(stats.kilosTotal)} />
+            <Tile label="Toneladas este mes" value={formatTon(stats.kilosMes)} />
             <Tile label="Registrados hoy" value={stats.hoy.toLocaleString("es-CL")} />
             <Tile label="Registrados este mes" value={stats.mes.toLocaleString("es-CL")} />
           </div>
 
-          <Panel title="Evolución de montos por fecha">
+          <Panel title="Kilos netos por fecha">
             {stats.porFecha.length === 0 ? (
               <Empty />
             ) : (
@@ -45,22 +46,25 @@ export function Dashboard() {
                   <XAxis dataKey="fecha" tick={AXIS} tickFormatter={(d: string) => formatDate(d).slice(0, 5)} tickLine={false} axisLine={{ stroke: "#cbd5e1" }} minTickGap={24} />
                   <YAxis tick={AXIS} tickFormatter={compact} tickLine={false} axisLine={false} width={48} />
                   <Tooltip
-                    formatter={(v) => [formatMoney(Number(v)), "Monto"]}
+                    formatter={(v) => [formatKg(Number(v)), "Peso neto"]}
                     labelFormatter={(d) => formatDate(String(d))}
                     contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
                   />
-                  <Area type="monotone" dataKey="monto" stroke={BRAND} strokeWidth={2} fill={BRAND} fillOpacity={0.12} activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="kilos" stroke={BRAND} strokeWidth={2} fill={BRAND} fillOpacity={0.12} activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </Panel>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="Monto por comercio">
-              <HBar data={stats.porComercio.slice(0, 10).map((c) => ({ nombre: c.nombre, valor: c.monto }))} money />
+            <Panel title="Kilos netos por origen">
+              <HBar data={stats.porOrigen.slice(0, 10).map((c) => ({ nombre: c.nombre, valor: c.kilos }))} kilos />
             </Panel>
-            <Panel title="Registros por comercio">
-              <HBar data={[...stats.porComercio].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10).map((c) => ({ nombre: c.nombre, valor: c.cantidad }))} />
+            <Panel title="Kilos netos por patente">
+              <HBar data={stats.porPatente.slice(0, 10).map((c) => ({ nombre: c.nombre, valor: c.kilos }))} kilos />
+            </Panel>
+            <Panel title="Viajes por patente">
+              <HBar data={[...stats.porPatente].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10).map((c) => ({ nombre: c.nombre, valor: c.cantidad }))} />
             </Panel>
             <Panel title="Registros por usuario">
               <HBar data={stats.porUsuario.slice(0, 10).map((u) => ({ nombre: u.nombre, valor: u.cantidad }))} />
@@ -94,17 +98,17 @@ function Empty() {
   return <p className="py-8 text-center text-sm text-slate-400">Sin datos para mostrar</p>;
 }
 
-function HBar({ data, money }: { data: { nombre: string; valor: number }[]; money?: boolean }) {
+function HBar({ data, kilos }: { data: { nombre: string; valor: number }[]; kilos?: boolean }) {
   if (!data.length) return <Empty />;
   return (
     <ResponsiveContainer width="100%" height={Math.max(120, data.length * 34 + 20)}>
       <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }} barCategoryGap={6}>
         <CartesianGrid stroke="#e2e8f0" horizontal={false} />
-        <XAxis type="number" tick={AXIS} tickFormatter={money ? compact : undefined} allowDecimals={false} tickLine={false} axisLine={false} />
+        <XAxis type="number" tick={AXIS} tickFormatter={kilos ? compact : undefined} allowDecimals={false} tickLine={false} axisLine={false} />
         <YAxis type="category" dataKey="nombre" tick={AXIS} width={120} tickLine={false} axisLine={false} tickFormatter={(s: string) => (s.length > 16 ? s.slice(0, 15) + "…" : s)} />
         <Tooltip
           cursor={{ fill: "#eef5ff" }}
-          formatter={(v) => [money ? formatMoney(Number(v)) : Number(v).toLocaleString("es-CL"), money ? "Monto" : "Registros"]}
+          formatter={(v) => [kilos ? formatKg(Number(v)) : Number(v).toLocaleString("es-CL"), kilos ? "Peso neto" : "Tickets"]}
           contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
         />
         <Bar dataKey="valor" fill={BRAND} radius={[0, 4, 4, 0]} maxBarSize={22} />
