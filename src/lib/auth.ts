@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { nanoid } from "nanoid";
 import { getStorage } from "./storage";
+import { env } from "./storage/google";
 import { can, type Action } from "./permissions";
 import { SESSION_COOKIE, SESSION_HOURS, signSession, verifySession, type SessionUser } from "./session";
 import type { Role, User } from "./types";
@@ -67,7 +68,8 @@ export function newUser(input: { usuario: string; nombre: string; rol: Role; pas
 
 /** Si no existe ningún usuario, crea el administrador inicial definido en ADMIN_USERNAME / ADMIN_PASSWORD. */
 export async function ensureBootstrapAdmin() {
-  const { ADMIN_USERNAME, ADMIN_PASSWORD } = process.env;
+  const ADMIN_USERNAME = env("ADMIN_USERNAME");
+  const ADMIN_PASSWORD = env("ADMIN_PASSWORD");
   if (!ADMIN_USERNAME || !ADMIN_PASSWORD) return;
   const users = getStorage().users;
   if ((await users.list()).length > 0) return;

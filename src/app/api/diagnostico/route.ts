@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { env } from "@/lib/storage/google";
+import { getStorage } from "@/lib/storage";
+import { checkPassword } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,9 @@ export async function GET() {
     "SESSION_SECRET suficiente (32+)": (env("SESSION_SECRET")?.length ?? 0) >= 32,
     "Usuario administrador inicial": env("ADMIN_USERNAME") ?? "NO CONFIGURADO",
     "Contraseña administrador configurada": !!env("ADMIN_PASSWORD"),
+    "Largo de la contraseña administrador": env("ADMIN_PASSWORD")?.length ?? 0,
+    "Contraseña administrador tenía espacios o comillas":
+      (process.env.ADMIN_PASSWORD ?? "") !== (env("ADMIN_PASSWORD") ?? ""),
   };
 
   if (clientId && secret && refresh) {
@@ -48,6 +53,22 @@ export async function GET() {
       }
     } catch (e) {
       checks["Conexión con Google"] = `ERROR: ${googleError(e)}`;
+    }
+  }
+  if (checks["Acceso a la planilla"]?.toString().startsWith("OK")) {
+    try {
+      const users = await getStorage().users.list();
+      checks["Usuarios en la planilla"] = users.length
+        ? users.map((u) => `${u.usuario} (${u.rol}${u.activo ? "" : ", inactivo"})`)
+        : "ninguno (el admin se crea al primer inicio de sesión)";
+      const adminName = env("ADMIN_USERNAME")?.toLowerCase();
+      const admin = users.find((u) => u.usuario.toLowerCase() === adminName);
+      const password = env("ADMIN_PASSWORD");
+      if (admin && password) {
+        checks["Contraseña de Vercel coincide con el admin guardado"] = await checkPassword(password, admin.password_hash);
+      }
+    } catch (e) {
+      checks["Usuarios en la planilla"] = `ERROR: ${googleError(e)}`;
     }
   }
   return NextResponse.json(checks, { headers: { "Cache-Control": "no-store" } });
