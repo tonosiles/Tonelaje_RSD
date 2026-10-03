@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { env } from "./storage/google";
 import { VOUCHER_FIELDS, emptyVoucher, type VoucherData, type VoucherField } from "./types";
 
 const fieldShape = Object.fromEntries(VOUCHER_FIELDS.map((f) => [f, z.string()])) as Record<
@@ -53,11 +54,16 @@ Formato de los campos:
 - observaciones: una frase breve sobre la calidad de lectura o problemas encontrados, o "" si no hay.`;
 
 function client() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // Las claves de API que no pertenecen a un workspace necesitan indicar uno en cada petición.
+  const workspace = env("ANTHROPIC_WORKSPACE_ID");
+  return new Anthropic({
+    apiKey: env("ANTHROPIC_API_KEY"),
+    defaultHeaders: workspace ? { "anthropic-workspace-id": workspace } : undefined,
+  });
 }
 
 export function extractionEnabled() {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return !!env("ANTHROPIC_API_KEY");
 }
 
 export async function extractVoucher(image: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<ExtractionResult> {
